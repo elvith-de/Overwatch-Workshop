@@ -1,0 +1,198 @@
+variables
+{
+	global:
+		0: DEBUG
+
+	player:
+		0: Health_Percent
+		1: Health
+		2: Ultcharge_percent
+		3: update
+		4: next_Hero
+}
+
+rule("DEBUG")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	actions
+	{
+		Global.DEBUG = True;
+	}
+}
+
+rule("Faster start")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Button Held(Event Player, Interact) == True;
+		Global.DEBUG == True;
+		Is Button Held(Event Player, Crouch) == True;
+	}
+
+	actions
+	{
+		Set Match Time(5);
+	}
+}
+
+rule("Initialize Player Variables")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	actions
+	{
+		Event Player.Health = Max Health(Event Player);
+		Event Player.Health_Percent = 1;
+		Event Player.Ultcharge_percent = Ultimate Charge Percent(Event Player);
+		Event Player.update = True;
+		Event Player.next_Hero = Random Value In Array(All Heroes);
+	}
+}
+
+rule("Create HUD")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	actions
+	{
+		Create HUD Text(Event Player, Hero Icon String(Event Player.next_Hero), Custom String("Next Hero On Kill"), Event Player.next_Hero,
+			Left, 0, White, White, White, Visible To and String, Default Visibility);
+	}
+}
+
+rule("Track Player Health")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Game In Progress == True;
+		Event Player.Health != Health(Event Player);
+		Event Player.update == True;
+	}
+
+	actions
+	{
+		Event Player.Health = Health(Event Player);
+		Event Player.Health_Percent = Health(Event Player) / Max Health(Event Player);
+	}
+}
+
+rule("Track Player Ultcharge")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Game In Progress == True;
+		Event Player.Ultcharge_percent != Ultimate Charge Percent(Event Player);
+		Event Player.update == True;
+	}
+
+	actions
+	{
+		Event Player.Ultcharge_percent = Ultimate Charge Percent(Event Player);
+	}
+}
+
+rule("Get random hero on kill")
+{
+	event
+	{
+		Player Dealt Final Blow;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Alive(Event Player) == True;
+	}
+
+	actions
+	{
+		Event Player.update = False;
+		Wait(0.250, Ignore Condition);
+		Start Forcing Player To Be Hero(Event Player, Event Player.next_Hero);
+		Wait(0.250, Ignore Condition);
+		"Don't get full health, HP will be kept relative to actual HP before"
+		Damage(Event Player, Null, Max Health(Event Player) - Max Health(Event Player) * Event Player.Health_Percent);
+		Set Ultimate Charge(Event Player, Event Player.Ultcharge_percent);
+		Event Player.next_Hero = Random Value In Array(All Heroes);
+		Event Player.update = True;
+	}
+}
+
+rule("When player dead")
+{
+	event
+	{
+		Player Died;
+		All;
+		All;
+	}
+
+	actions
+	{
+		Wait(0.250, Ignore Condition);
+		Stop Forcing Player To Be Hero(Event Player);
+		Wait(0.250, Ignore Condition);
+		Kill(Event Player, Attacker);
+		Event Player.update = False;
+		Event Player.next_Hero = Random Value In Array(All Heroes);
+		Event Player.Health = Max Health(Event Player);
+		Event Player.Health_Percent = 1;
+		Event Player.update = True;
+	}
+}
+
+rule("Rule 9")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Between Rounds == True;
+	}
+
+	actions
+	{
+		Stop Forcing Player To Be Hero(Event Player);
+	}
+}
